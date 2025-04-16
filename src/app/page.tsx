@@ -123,7 +123,7 @@ export default function Page() {
                   Check out my latest work
                 </h2>
                 <p className="text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                From wrangling NLP pipelines to building AI-driven systems, I've dived into a range of projects that push the boundaries of what's possible. Here are a few that stand out.
+                From wrangling NLP pipelines to building AI-driven systems, I&apos;ve dived into a range of projects that push the boundaries of what&apos;s possible. Here are a few that stand out.
                 </p>
               </div>
             </div>
