@@ -282,6 +282,7 @@ export const DATA = {
         {
           type: "GitHub",
           href: "https://github.com/aumsathwara/SDusingAI",
+          icon: <Icons.globe className="size-3" />,
         },
       ],
       image: "/SDAI.png",
@@ -308,6 +309,7 @@ export const DATA = {
         {
           type: "GitHub",
           href: "https://github.com/aumsathwara/Diabetic-Retinopathy",
+          icon: <Icons.globe className="size-3" />,
         },
       ],
       image: "/diabetic_retinopathy.png",
@@ -331,6 +333,7 @@ export const DATA = {
         {
           type: "GitHub",
           href: "https://github.com/aumsathwara/MCP",
+          icon: <Icons.globe className="size-3" />,
         },
       ],
       image: "/mcp_monorepo.png",
@@ -356,6 +359,7 @@ export const DATA = {
         {
           type: "GitHub",
           href: "https://github.com/aumsathwara/VQA-ChestXray",
+          icon: <Icons.globe className="size-3" />, 
         },
       ],
       image: "/vqa_chest_xray.png",
