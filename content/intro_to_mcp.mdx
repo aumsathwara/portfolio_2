@@ -1,0 +1,245 @@
+---
+title: "Building with Model Context Protocol: A Practical Introduction for Developers"
+publishedAt: "2024-07-10"
+summary: "Learn what the Model Context Protocol (MCP) is, how it works, and build a simple filesystem server and client implementation on your local system."
+---
+
+# Building with Model Context Protocol: A Practical Introduction
+
+The AI landscape is evolving rapidly, with large language models (LLMs) becoming increasingly capable. However, these models often struggle with accessing real-time data or performing tasks in the real world. The Model Context Protocol (MCP) aims to bridge this gap by providing a standardized way for LLMs to interact with external tools, services, and data sources. In this guide, we'll explore what MCP is, why it matters, and walk through building a simple filesystem server and client implementation on your local machine.
+
+By the end of this tutorial, you'll have a working MCP server that lets an AI model browse and interact with your filesystem, along with a client to connect to any MCP-compliant server. This practical approach will give you hands-on experience with this emerging protocol that's changing how we build AI applications.
+
+## What is the Model Context Protocol?
+
+Model Context Protocol (MCP) is an open standard that defines how AI models can safely and efficiently discover and use external capabilities through a consistent interaction pattern. Essentially, MCP provides a structured way for AI models to:
+
+1. **Discover available tools** from external services
+2. **Request access** to specific capabilities
+3. **Execute actions** in the real world or retrieve external data
+4. **Receive results** in a format they can understand
+
+MCP acts as a communication bridge between AI models and the outside world, allowing them to overcome their inherent limitations by delegating specific tasks to specialized tools.
+
+```jsx
+// Conceptual Example of MCP Flow
+const mcpFlow = {
+  discovery: "Model asks what tools are available",
+  selection: "Model chooses appropriate tools for the task",
+  execution: "Model uses tools to perform actions",
+  feedback: "Tools return results to the model for processing"
+};
+```
+
+The protocol uses a standardized JSON format for all communications, making it language-agnostic and easy to implement across different platforms and systems.
+
+## Core Components of MCP Architecture
+
+The MCP architecture consists of several key components:
+
+| Component | Description |
+| --------- | ----------- |
+| Server    | Hosts tools and capabilities that models can access |
+| Client    | Connects to MCP servers on behalf of the model |
+| Tools     | Individual capabilities provided by servers |
+| Contexts  | Scoped environments in which tools operate |
+
+Each MCP server provides a set of **tools** (functions the model can call) within specific **contexts** (scoped environments). For example, a filesystem MCP server might provide tools like `listDirectory` and `readFile` within a context that has access to your local files.
+
+```jsx
+// Example of MCP Tool Definition
+const listDirectoryTool = {
+  name: "listDirectory",
+  description: "Lists files and directories at a given path",
+  parameters: {
+    type: "object",
+    properties: {
+      path: {
+        type: "string",
+        description: "The directory path to list"
+      }
+    },
+    required: ["path"]
+  }
+};
+```
+
+These tools are self-describing, meaning an AI model can understand what they do and how to use them based on their metadata.
+
+## Building a Filesystem MCP Server
+
+Let's create a simple MCP server that provides access to the local filesystem. We'll use Node.js for our implementation:
+
+```jsx
+// server.js
+const express = require('express');
+const cors = require('cors');
+const fs = require('fs/promises');
+const path = require('path');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Define our MCP tools
+const tools = [
+  {
+    name: "listDirectory",
+    description: "List files and directories at a given path",
+    parameters: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "The directory path to list"
+        }
+      },
+      required: ["path"]
+    }
+  },
+  {
+    name: "readFile",
+    description: "Read the contents of a file",
+    parameters: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "The file path to read"
+        }
+      },
+      required: ["path"]
+    }
+  }
+];
+
+// MCP discovery endpoint
+app.get('/mcp', (req, res) => {
+  res.json({
+    protocol: "mcp",
+    version: "0.1",
+    contexts: [
+      {
+        name: "filesystem",
+        description: "Access the local filesystem",
+        tools: tools
+      }
+    ]
+  });
+});
+
+// MCP tool execution endpoint
+app.post('/mcp/contexts/filesystem', async (req, res) => {
+  const { tool, parameters } = req.body;
+  
+  try {
+    if (tool === "listDirectory") {
+      const dirPath = parameters.path;
+      const safeDir = path.resolve(dirPath);
+      const files = await fs.readdir(safeDir, { withFileTypes: true });
+      
+      const fileList = files.map(file => ({
+        name: file.name,
+        isDirectory: file.isDirectory(),
+        path: path.join(safeDir, file.name)
+      }));
+      
+      res.json({ result: fileList });
+    } 
+    else if (tool === "readFile") {
+      const filePath = parameters.path;
+      const safeFile = path.resolve(filePath);
+      const content = await fs.readFile(safeFile, 'utf-8');
+      
+      res.json({ result: content });
+    } 
+    else {
+      res.status(400).json({ error: "Unknown tool" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Start the server
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`MCP Filesystem server running at http://localhost:${PORT}`);
+});
+```
+
+To use this server, install the necessary packages and run it:
+
+```bash
+npm install express cors
+node server.js
+```
+
+This simple server provides two filesystem tools: listing directories and reading files. The `/mcp` endpoint handles discovery, letting clients (and therefore AI models) learn what tools are available.
+
+## Creating a Generic MCP Client
+
+Now, let's build a client that can connect to any MCP server, discover its tools, and execute them. We'll create a browser-based client using plain JavaScript:
+
+```jsx
+// client.js
+class MCPClient {
+  constructor(serverUrl) {
+    this.serverUrl = serverUrl;
+    this.contexts = [];
+  }
+
+  async discover() {
+    try {
+      const response = await fetch(`${this.serverUrl}/mcp`);
+      if (!response.ok) throw new Error('Discovery failed');
+      
+      const data = await response.json();
+      console.log('Discovered MCP server:', data);
+      
+      if (data.protocol !== 'mcp') {
+        throw new Error('Not a valid MCP server');
+      }
+      
+      this.contexts = data.contexts;
+      return this.contexts;
+    } catch (error) {
+      console.error('MCP discovery error:', error);
+      throw error;
+    }
+  }
+
+  async executeTool(contextName, toolName, parameters) {
+    try {
+      const response = await fetch(`${this.serverUrl}/mcp/contexts/${contextName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tool: toolName,
+          parameters: parameters
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Tool execution failed');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('MCP tool execution error:', error);
+      throw error;
+    }
+  }
+
+  getToolsForContext(contextName) {
+    const context = this.contexts.find(ctx => ctx.name === contextName);
+    return context ? context.tools : [];
+  }
+}
+
+// Usage example
+async function main() {
+  const client = new MCPClient
